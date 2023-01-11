@@ -11,10 +11,85 @@
 #include <cmath>
 #include <mutex>
 #include <thread>
-
 #include <unistd.h>
-
 std::mutex m;
+
+
+
+struct nodeTree{
+    int key = NULL;
+    nodeTree *left = NULL;
+    nodeTree *right = NULL;
+    
+    nodeTree(int key_):key(key_){};
+};
+
+
+
+struct BST{
+    nodeTree *root = NULL;
+    
+    void addNode(int key);
+    void checkNode(nodeTree *node, nodeTree *nodeToAdd);
+    nodeTree * searchNode(nodeTree *node,int key);
+    auto recSearchNode(int key);
+    void showTree(nodeTree *node);
+};
+
+nodeTree * BST::searchNode(nodeTree *node, int key){
+
+    if(node == NULL || node->key == key){
+        return node;
+    }
+    if(node->key > key){
+        return this->searchNode(node->left, key);
+    }
+        return this->searchNode(node->right, key);
+    
+    
+}
+
+
+void BST::checkNode(nodeTree *node, nodeTree *nodeToAdd){
+    if(nodeToAdd->key < node->key){
+        if(node->left != NULL){
+            checkNode(node->left, nodeToAdd);
+        }else{
+            node->left =nodeToAdd;
+        }
+    }else if(nodeToAdd->key > node->key ){
+        if(node->right != NULL){
+            checkNode(node->right, nodeToAdd);
+        }else{
+            node->right =nodeToAdd;
+        }
+    }
+    
+    
+}
+
+void BST::addNode(int key){
+    nodeTree* newNode = new nodeTree(key);
+    if(root == NULL){
+        root = newNode;
+    }else{
+        checkNode(root, newNode);
+    }
+}
+
+void BST::showTree(nodeTree *node){
+    if(node-> key != NULL){
+        std::cout<< node->key<<"\n";
+        if(node->left != NULL){
+            BST::showTree(node->left);
+        }if(node->right != NULL){
+            BST::showTree(node->right);
+        }
+        std::cout<<"-----\n";
+    }
+}
+
+
 struct linkedListItem{
     linkedListItem *nextElement = NULL;
     
@@ -162,7 +237,7 @@ int main(int argc, const char * argv[]) {
     //hash->addElement("c",3);
     //hash->printElements();
     
-    std::thread t1(&hashTable::addElement,hash,"a",1);
+    /*std::thread t1(&hashTable::addElement,hash,"a",1);
     std::thread t2(&hashTable::addElement,hash,"a",2);
     std::thread t3(&hashTable::addElement,hash,"b",2);
     std::thread t4(&hashTable::addElement,hash,"c",2);
@@ -171,6 +246,17 @@ int main(int argc, const char * argv[]) {
     t2.join();
     t3.join();
     t4.join();
-    hash->printElements();
+    hash->printElements();*/
+    
+    BST* tree =new BST();
+    tree->addNode(5);
+    tree->addNode(7);
+    tree->addNode(4);
+    tree->showTree(tree->root);
+    
+    nodeTree *find = new nodeTree(0);
+    
+    find = tree->searchNode(tree->root, 7);
+    std::cout<<find->key;
     return 0;
 }
