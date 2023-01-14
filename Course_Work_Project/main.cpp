@@ -12,7 +12,15 @@
 #include <mutex>
 #include <thread>
 #include <unistd.h>
+#include <fstream>
+#include "server.hpp"
+#include <dirent.h>
+
+
 std::mutex m;
+std::mutex p;
+#define AMOUNTF 3
+#define AMOUNTTH 3
 
 
 
@@ -32,7 +40,6 @@ struct BST{
     void addNode(int key);
     void checkNode(nodeTree *node, nodeTree *nodeToAdd);
     nodeTree * searchNode(nodeTree *node,int key);
-    auto recSearchNode(int key);
     void showTree(nodeTree *node);
 };
 
@@ -78,14 +85,18 @@ void BST::addNode(int key){
 }
 
 void BST::showTree(nodeTree *node){
-    if(node-> key != NULL){
+    if(node-> key != NULL ){
         std::cout<< node->key<<"\n";
         if(node->left != NULL){
+        std::cout<<"left \n";
             BST::showTree(node->left);
         }if(node->right != NULL){
+            std::cout<<"right \n";
             BST::showTree(node->right);
         }
         std::cout<<"-----\n";
+    }else{
+        std::cout<<"error- "<<node->key;
     }
 }
 
@@ -94,8 +105,8 @@ struct linkedListItem{
     linkedListItem *nextElement = NULL;
     
     std::string word;
-    std::vector<int> files;
-    
+    //std::vector<int> files;
+    BST files;
     public:
     linkedListItem(std::string word_): word(word_),files(){};
     
@@ -103,25 +114,22 @@ struct linkedListItem{
     void showAllFiles();
 };
 
-
-//parallelizm
 void linkedListItem::addNewFile(int file){
-    files.push_back(file);
+    files.addNode(file);
 }
 void linkedListItem::showAllFiles(){
-    for(int i = 0; i < files.size();i++){
-        std::cout<< files[i] <<"\n";
-    }
+    files.showTree(files.root);
 }
 
 class linkedList{
     std::mutex segmentMutex;
+    std::mutex &accessMutex;
     linkedListItem *head = NULL;
     int id;
     public:
-    linkedList(int id_):id(id_),segmentMutex(){};
+    linkedList(int id_, std::mutex &accessMutex_):id(id_), accessMutex(accessMutex_){};
     linkedListItem* findElement(std::string data);
-    linkedListItem* addElement(std::string data, int file);
+    linkedListItem* addElement(std::string data, int file, int position);
     void printList();
 };
 
@@ -138,25 +146,15 @@ linkedListItem *linkedList::findElement(std::string data){
     return nullptr;
 };
 
-linkedListItem* linkedList::addElement(std::string data, int file){
-    sleep(id);
-    m.lock();
-    std::cout<<"Start...?"<<id<<"\n";
-    m.unlock();
-    //std::lock_guard<std::mutex> lock (segmentMutex);
+linkedListItem* linkedList::addElement(std::string data, int file,int position){
+    accessMutex.unlock();
     segmentMutex.lock();
-    m.lock();
-    std::cout<<"Inside"<<id<<"\n";
-    m.unlock();
     linkedListItem* new_item = new linkedListItem(data);
     if(head != NULL){
         auto isExist = linkedList::findElement(data);
         if(isExist != nullptr){
             isExist->addNewFile(file);
             segmentMutex.unlock();
-            m.lock();
-            std::cout<<"Outside1 "<<id<<"\n";
-            m.unlock();
             return isExist;
         }else{
             new_item->nextElement = head;
@@ -164,10 +162,7 @@ linkedListItem* linkedList::addElement(std::string data, int file){
     }
         head = new_item;
         head->addNewFile(file);
-        segmentMutex.unlock();
-    m.lock();
-        std::cout<<"Outside2 "<<id<<"\n";
-    m.unlock();
+    segmentMutex.unlock();
         return new_item;
 
 };
@@ -185,17 +180,17 @@ void linkedList::printList(){
 
 class hashTable{
     std::vector<linkedList*> buckets;
+    std::mutex accessMutex;
     int size;
     public:
-    hashTable(int size_):size(size_){
+    hashTable(int size_ ):size(size_){
         for(int i = 0; i<size_; i++){
-            linkedList* l1 = new linkedList(i);
+
+            linkedList* l1 = new linkedList(i, std::ref(accessMutex));
             buckets.push_back(l1);
             
         }
-        //std::vector<linkedList> buckets_(size_);
-        //buckets.resize(5, 0);
-        //buckets = buckets_;
+        
     }
     int hashFunction(std::string &word);
     void addElement(std::string word, int file);
@@ -212,13 +207,19 @@ int hashTable::hashFunction(std::string &word){
     for (int i = 0; i < word.length(); i++) {
         hashCode += word[i] * pow(PRIME_CONST, i);
     }
+    if( hashCode % size < 0){
+        return -1 * (hashCode % size);
+    }
     return hashCode % size;
     
 };
 
 void hashTable::addElement(std::string word, int file){
     int position = hashTable::hashFunction(word);
-    buckets[position]->addElement(word,file);
+    
+    accessMutex.lock();
+    buckets[position]->addElement(word,file,position);
+    
 }
 
 void hashTable::printElements(){
@@ -227,16 +228,68 @@ void hashTable::printElements(){
     }
 }
 
+
+void processFile(std::string name, int id, hashTable* hash)
+{
+    
+    std::ifstream file ("/Users/daraugnivenko/Documents/courseFiles/" + name);
+    std::cout<<name;
+    if (!file.is_open()) return;
+    
+    std::string word;
+    while (file >> word)
+    {
+        
+        hash->addElement(word,id);
+    }
+}
+
+std::string getTheFile(int id){
+    //p.lock();
+    struct dirent *entry = nullptr;
+    DIR *dp = nullptr;
+    id += 2;
+    dp = opendir("/Users/daraugnivenko/Documents/courseFiles");
+    if (dp != nullptr) {
+        int i = 1;
+        while ((entry = readdir(dp))){
+            if(id == i){
+            std::string res = entry->d_name;
+            closedir(dp);
+            //p.unlock();
+            return res;
+                
+            }
+            i++;
+        }
+    }
+    return NULL;
+}
+
+
+
+void startThread(int id_of_thread, hashTable* hash){
+    
+    int start = id_of_thread + 1;
+    int end = id_of_thread + AMOUNTF/AMOUNTTH;
+    int current = start;
+    while(start <= end && current <= AMOUNTTH){
+        
+        std::string name = getTheFile(current);
+        processFile(name, current, hash);
+        current++;
+    }
+}
+
 int main(int argc, const char * argv[]) {
     
-
+    std::vector<std::thread> threads;
     hashTable* hash = new hashTable(6);
     
-    //hash->addElement("b",2);
-    //hash->addElement("a",5);
-    //hash->addElement("c",3);
-    //hash->printElements();
+
     
+    //hash->printElements();
+   
     /*std::thread t1(&hashTable::addElement,hash,"a",1);
     std::thread t2(&hashTable::addElement,hash,"a",2);
     std::thread t3(&hashTable::addElement,hash,"b",2);
@@ -248,15 +301,16 @@ int main(int argc, const char * argv[]) {
     t4.join();
     hash->printElements();*/
     
-    BST* tree =new BST();
-    tree->addNode(5);
-    tree->addNode(7);
-    tree->addNode(4);
-    tree->showTree(tree->root);
+    for(int i = 0; i<AMOUNTTH; i++){
     
-    nodeTree *find = new nodeTree(0);
+        threads.push_back(std::thread(startThread, i, hash));
+    }
     
-    find = tree->searchNode(tree->root, 7);
-    std::cout<<find->key;
+    for(int i = 0; i<AMOUNTTH; i++){
+        threads[i].join();
+    }
+    
+    hash->printElements();
+    
     return 0;
 }
