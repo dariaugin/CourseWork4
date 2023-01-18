@@ -10,16 +10,6 @@
 		4DBF6DF5295C50D2002C3D00 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4DBF6DF4295C50D2002C3D00 /* main.cpp */; };
 /* End PBXBuildFile section */
 
-/* Begin PBXContainerItemProxy section */
-		4D63BFD42975481C00A40DF0 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 4D63BFD02975481A00A40DF0 /* CourseWorkVisitor.xcodeproj */;
-			proxyType = 2;
-			remoteGlobalIDString = 4D63BFC62975481A00A40DF0;
-			remoteInfo = CourseWorkVisitor;
-		};
-/* End PBXContainerItemProxy section */
-
 /* Begin PBXCopyFilesBuildPhase section */
 		4DBF6DEF295C50D2002C3D00 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
@@ -33,7 +23,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		4D63BFD02975481A00A40DF0 /* CourseWorkVisitor.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = CourseWorkVisitor.xcodeproj; path = ../../CourseWorkVisitor/CourseWorkVisitor.xcodeproj; sourceTree = "<group>"; };
+		4D63BFD82978A72700A40DF0 /* client.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = client.cpp; path = ../../CourseWorkVisitor/CourseWorkVisitor/client.cpp; sourceTree = "<group>"; };
 		4DBF6DF1295C50D2002C3D00 /* Course_Work_Project */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Course_Work_Project; sourceTree = BUILT_PRODUCTS_DIR; };
 		4DBF6DF4295C50D2002C3D00 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -49,14 +39,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		4D63BFD12975481A00A40DF0 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				4D63BFD52975481C00A40DF0 /* CourseWorkVisitor */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
 		4DBF6DE8295C50D1002C3D00 = {
 			isa = PBXGroup;
 			children = (
@@ -76,7 +58,7 @@
 		4DBF6DF3295C50D2002C3D00 /* Course_Work_Project */ = {
 			isa = PBXGroup;
 			children = (
-				4D63BFD02975481A00A40DF0 /* CourseWorkVisitor.xcodeproj */,
+				4D63BFD82978A72700A40DF0 /* client.cpp */,
 				4DBF6DF4295C50D2002C3D00 /* main.cpp */,
 			);
 			path = Course_Work_Project;
@@ -127,28 +109,12 @@
 			mainGroup = 4DBF6DE8295C50D1002C3D00;
 			productRefGroup = 4DBF6DF2295C50D2002C3D00 /* Products */;
 			projectDirPath = "";
-			projectReferences = (
-				{
-					ProductGroup = 4D63BFD12975481A00A40DF0 /* Products */;
-					ProjectRef = 4D63BFD02975481A00A40DF0 /* CourseWorkVisitor.xcodeproj */;
-				},
-			);
 			projectRoot = "";
 			targets = (
 				4DBF6DF0295C50D2002C3D00 /* Course_Work_Project */,
 			);
 		};
 /* End PBXProject section */
-
-/* Begin PBXReferenceProxy section */
-		4D63BFD52975481C00A40DF0 /* CourseWorkVisitor */ = {
-			isa = PBXReferenceProxy;
-			fileType = "compiled.mach-o.executable";
-			path = CourseWorkVisitor;
-			remoteRef = 4D63BFD42975481C00A40DF0 /* PBXContainerItemProxy */;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-/* End PBXReferenceProxy section */
 
 /* Begin PBXSourcesBuildPhase section */
 		4DBF6DED295C50D2002C3D00 /* Sources */ = {
