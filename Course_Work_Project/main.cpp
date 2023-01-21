@@ -14,7 +14,7 @@
 #include <unistd.h>
 #include <fstream>
 #include <dirent.h>
-
+using namespace std::chrono;
 #include <iostream>
 #include <stdio.h>
 #include <string.h>
@@ -31,11 +31,10 @@
 #define PORT 8080
 
 
-std::mutex m;
-std::mutex p;
-#define AMOUNTF 3
-#define AMOUNTTH 3
 
+#define AMOUNTF 200
+#define AMOUNTTH 2
+#define HASHSIZE 8
 
 
 struct nodeTree{
@@ -50,11 +49,12 @@ struct nodeTree{
 
 struct BST{
     nodeTree *root = NULL;
+    
     void addNode(int key);
     void checkNode(nodeTree *node, nodeTree *nodeToAdd);
     nodeTree * searchNode(nodeTree *node,int key);
     void showTree(nodeTree *node);
-    std::vector<int> getFiles(nodeTree *node,std::vector<int> files_vec  );
+    void getFiles(nodeTree *node,std::vector<int>& f);
 };
 
 nodeTree * BST::searchNode(nodeTree *node, int key){
@@ -102,34 +102,28 @@ void BST::showTree(nodeTree *node){
     if(node-> key != NULL ){
         std::cout<< node->key<<"\n";
         if(node->left != NULL){
-        std::cout<<"left \n";
+        //std::cout<<"left \n";
             BST::showTree(node->left);
         }if(node->right != NULL){
-            std::cout<<"right \n";
+            //std::cout<<"right \n";
             BST::showTree(node->right);
         }
-        std::cout<<"-----\n";
+        
     }else{
         std::cout<<"error- "<<node->key;
     }
 }
 
-std::vector<int> BST::getFiles(nodeTree *node, std::vector<int> files_vec = {} ){
+void BST::getFiles(nodeTree *node, std::vector<int>& f){
     if(node-> key != NULL ){
-        std::cout<< node->key<<"\n";
-        files_vec.push_back(node->key);
+        f.push_back(node->key);
         if(node->left != NULL){
-            return BST::getFiles(node->left,std::move(files_vec));
+             BST::getFiles(node->left, f);
         }
         if(node->right != NULL){
-            return BST::getFiles(node->right, std::move(files_vec));
+            BST::getFiles(node->right, f);
         }
     }
-        return files_vec;
-        //return {};
-    
-    //std::vector<int> empty = {};
-    //return empty;
     
 }
 
@@ -137,9 +131,7 @@ std::vector<int> BST::getFiles(nodeTree *node, std::vector<int> files_vec = {} )
 
 struct linkedListItem{
     linkedListItem *nextElement = NULL;
-    
     std::string word;
-    //std::vector<int> files;
     BST files;
     public:
     linkedListItem(std::string word_): word(word_),files(){};
@@ -157,11 +149,10 @@ void linkedListItem::showAllFiles(){
 
 class linkedList{
     std::mutex segmentMutex;
-    std::mutex &accessMutex;
     linkedListItem *head = NULL;
     int id;
     public:
-    linkedList(int id_, std::mutex &accessMutex_):id(id_), accessMutex(accessMutex_){};
+    linkedList(int id_):id(id_){};
     linkedListItem* findElement(std::string data);
     linkedListItem* addElement(std::string data, int file, int position);
     std::vector<int> findElement_getFiles(std::string data);
@@ -186,9 +177,10 @@ std::vector<int> linkedList::findElement_getFiles(std::string data){
     //std::vector<int>* files;
     while(current != NULL){
         if(current->word == data){
-            return current->files.getFiles(current->files.root);
-            std::cout<< "WORD: "<< data<<"\n";
-            //std::cout<<files->size();
+            std::vector<int> files;
+            current->files.getFiles(current->files.root, files);
+            return files;
+            
         }
         current = current->nextElement;
     }
@@ -196,7 +188,6 @@ std::vector<int> linkedList::findElement_getFiles(std::string data){
 };
 
 linkedListItem* linkedList::addElement(std::string data, int file,int position){
-    accessMutex.unlock();
     segmentMutex.lock();
     linkedListItem* new_item = new linkedListItem(data);
     if(head != NULL){
@@ -229,32 +220,25 @@ void linkedList::printList(){
 
 class hashTable{
     std::vector<linkedList*> buckets;
-    std::mutex accessMutex;
     int size;
     public:
     hashTable(int size_ ):size(size_){
         for(int i = 0; i<size_; i++){
-
-            linkedList* l1 = new linkedList(i, std::ref(accessMutex));
+            linkedList* l1 = new linkedList(i);
             buckets.push_back(l1);
-            
         }
-        
     }
     int hashFunction(std::string &word);
     void addElement(std::string word, int file);
     std::vector<int> findElement(std::string word);
     void printElements();
-    
-    
 };
 
 int hashTable::hashFunction(std::string &word){
-
-    const int PRIME_CONST = 31;
+    int prime = 31;
     int hashCode = 0;
     for (int i = 0; i < word.length(); i++) {
-        hashCode += word[i] * pow(PRIME_CONST, i);
+        hashCode += word[i] * pow(prime, i);
     }
     if( hashCode % size < 0){
         return -1 * (hashCode % size);
@@ -265,8 +249,6 @@ int hashTable::hashFunction(std::string &word){
 
 void hashTable::addElement(std::string word, int file){
     int position = hashTable::hashFunction(word);
-    
-    accessMutex.lock();
     buckets[position]->addElement(word,file,position);
     
 }
@@ -282,30 +264,43 @@ std::vector<int> hashTable::findElement(std::string word){
     return buckets[position]->findElement_getFiles(word);
 }
 
-
-
+std::string erase_notalpha(std::string word){
+    
+    int i = 0;
+    int size = word.length();
+    while(i < size){
+        if (!isalnum(word[i]) || word[i] == ' '){
+        word.erase(i,1);
+        size--;
+        }else
+        i++;
+    }
+    return word;
+}
+std::string process_word(std::string word){
+    transform(word.begin(), word.end(), word.begin(), ::tolower);
+    return erase_notalpha(word);
+}
 
 void processFile(std::string name, int id, hashTable* hash)
 {
     
-    std::ifstream file ("/Users/daraugnivenko/Documents/courseFiles/" + name);
-    std::cout<<name;
+    std::ifstream file ("/Users/daraugnivenko/Documents/my_files_test/" + name);
     if (!file.is_open()) return;
     
     std::string word;
     while (file >> word)
     {
         
-        hash->addElement(word,id);
+        hash->addElement(process_word(word),id);
     }
 }
 
 std::string getTheFile(int id){
-    //p.lock();
     struct dirent *entry = nullptr;
     DIR *dp = nullptr;
     id += 2;
-    dp = opendir("/Users/daraugnivenko/Documents/courseFiles");
+    dp = opendir("/Users/daraugnivenko/Documents/my_files_test");
     if (dp != nullptr) {
         int i = 1;
         while ((entry = readdir(dp))){
@@ -314,7 +309,6 @@ std::string getTheFile(int id){
             closedir(dp);
             //p.unlock();
             return res;
-                
             }
             i++;
         }
@@ -326,12 +320,14 @@ std::string getTheFile(int id){
 
 void startThread(int id_of_thread, hashTable* hash){
     
-    int start = id_of_thread + 1;
-    int end = id_of_thread + AMOUNTF/AMOUNTTH;
+    int start = id_of_thread*(AMOUNTF/AMOUNTTH) + 1;
+    int end = start +  AMOUNTF/AMOUNTTH;
     int current = start;
-    while(start <= end && current <= AMOUNTTH){
+
+    while(start < end && current <= AMOUNTF){
         
         std::string name = getTheFile(current);
+        
         processFile(name, current, hash);
         current++;
     }
@@ -345,7 +341,6 @@ struct Server{
     hashTable *hashh;
     fd_set readfds;
     std::vector<std::thread> threads;
-    //Server(hashTable *hash_):{}
     void start(){
         startHash();
         bind_and_llisten();
@@ -381,41 +376,23 @@ struct Server{
             printf("SERVER waiting for connections ...");
     }
     void handleConnection(){
-        for (int i = 0; i < max_clients; i++)
-        {
-            client_socket[i] = 0;
-        }
+
         while(true)
         {
             FD_ZERO(&readfds);
             FD_SET(master_socket, &readfds);
             maxsd = master_socket;
-            
-            for ( int i = 0 ; i < max_clients ; i++)
-            {
-                sd = client_socket[i];
 
-                if(sd > 0)
-                    FD_SET( sd , &readfds);
-                if(sd > maxsd)
-                    maxsd = sd;
-            }
-            
             activity = select( maxsd + 1 , &readfds , NULL , NULL , NULL);
             
             if ((activity < 0) && (errno!=EINTR)){
                     printf("select failed");
             }
-                
-            
             if (FD_ISSET(master_socket, &readfds))
                 {
                     handleNewConnection();
                 }
-                
             }
-        
-        
     }
     
     
@@ -426,29 +403,32 @@ struct Server{
     
     
     void startNewUserSession(int ns){
-        std::cout<<"here2";
         char word[5000];
         const char* mes = "Server waiting for your data...\nWhat word do you want to find?\n";
         write( ns, mes , strlen(mes));
+        
         read( ns, word, sizeof(word));
         std::string str_(word);
         std::cout<<"Searching for word ::: "<< word<<"\n";
         std::vector<int> result = findWordUser(ns, word, hashh);
-        for(int i = 0; i<result.size(); i++){
-            std::cout<<"Result - "<< result[i] << "\n";
+        
+        std::string result_str = "Files: ";
+        for(int i = 0; i < result.size(); i++){
+            result_str += std::to_string(result[i]) + " ";
         }
+        
+        char const *result_char = result_str.c_str();
+        write(ns, result_char, strlen(result_char));
+        std::cout<<result_char<<"\n";
+        
+
     }
     
-    
     void startNewThreadUser(int ns){
-        std::cout<<"here1";
         std::thread th = std::thread(&Server::startNewUserSession,this,ns);
-        //th.join();
         th.detach();
     }
 
-
-    
     void handleNewConnection(){
         if ((new_socket = accept(master_socket,
                     (struct sockaddr *)&address, (socklen_t*)&addrlen))<0)
@@ -475,13 +455,13 @@ struct Server{
                     perror("unknown connection");
                     exit(EXIT_FAILURE);
                 }
-
         }
-    
     
     void startHash(){
         std::vector<std::thread> threads;
-        hashTable* hash = new hashTable(6);
+        hashTable* hash = new hashTable(HASHSIZE);
+        
+        auto start = high_resolution_clock::now();
         for(int i = 0; i<AMOUNTTH; i++){
         
             threads.push_back(std::thread(startThread, i, hash));
@@ -490,30 +470,17 @@ struct Server{
         for(int i = 0; i<AMOUNTTH; i++){
             threads[i].join();
         }
+        auto stop = high_resolution_clock::now();
+        auto duration = duration_cast<microseconds>(stop - start);
+        std::cout <<"time: "<<duration.count() << "\n";
         hash->printElements();
         hashh = hash;
-        
     }
 };
 
 
-
-
-
-
-
-
-
-
-
-
 int main(int argc, const char * argv[]) {
-    
-    
-    
-    
     Server server;
     server.start();
-    
     return 0;
 }
